@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+}
+
+:root {
+  --bg-paper: #fdfcf8;
+  --ink: #1a1a1a;
+  --accent: #c2410c; /* Un orange brûlé élégant */
+}
+
+body {
+  background-color: var(--bg-paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Style typographique pour le journal */
+.newspaper-title {
+  font-family: var(--font-serif);
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.article-title {
+  font-family: var(--font-serif);
+  line-height: 1.1;
+}
+
+/* Animation de chargement élégante */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Masque de dégradé pour le défilement */
+.fade-bottom {
+  mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+}
+
+/* Personnalisation de la barre de défilement */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
