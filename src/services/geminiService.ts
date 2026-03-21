@@ -14,9 +14,9 @@ export const fetchNews = async (category: Category, lang: Language): Promise<New
   
   try {
     const result = await ai.models.generateContent({
-      // Utilisation du modèle 1.5-flash qui est le plus généreux
+      // CE MODÈLE EST LE PLUS GÉNÉREUX EN QUOTA GRATUIT
       model: "gemini-1.5-flash", 
-      contents: `Rédige 2 articles très courts pour ${category} en ${lang}. Style direct.`,
+      contents: `Rédige 2 articles de presse pour la catégorie ${category} en ${lang}. Style sérieux.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -40,25 +40,20 @@ export const fetchNews = async (category: Category, lang: Language): Promise<New
       }
     });
 
-    const text = result.text;
-    return JSON.parse(text || "[]");
+    return JSON.parse(result.text || "[]");
   } catch (error: any) {
     console.error("Erreur Gemini:", error);
-    // Retourne les articles de secours si l'IA est bloquée
-    return [
-      {
-        id: "fallback-1",
-        title: `Édition Spéciale : ${category}`,
-        summary: "Le Contre du Matin prépare ses rotatives numériques. Nos articles arrivent d'ici quelques minutes.",
-        content: "Merci de votre patience. Notre IA est en train de synthétiser les dernières informations mondiales pour vous offrir le meilleur briefing possible. Propriété de Atmani Bachir.",
-        category: category,
-        date: new Date().toLocaleDateString(),
-        author: "Rédaction IA",
-        imageUrl: "https://picsum.photos/seed/news/800/600",
-        readTime: "1 min"
-      }
-    ];
+    // Retourne un article de secours si le quota est atteint
+    return [{
+      id: "fallback",
+      title: "Briefing en cours de préparation",
+      summary: "L'IA prépare votre édition. Veuillez patienter quelques instants.",
+      content: "Le Contre du Matin revient vers vous avec les dernières actualités. Propriété de Atmani Bachir.",
+      category: category,
+      date: new Date().toLocaleDateString(),
+      author: "Rédaction IA",
+      imageUrl: "https://picsum.photos/seed/news/800/600",
+      readTime: "1 min"
+    }];
   }
 };
-
-export const generateSpeech = async (text: string) => { return ""; };
