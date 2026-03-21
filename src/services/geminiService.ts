@@ -1,14 +1,42 @@
-import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { GoogleGenAI, Type, Modality, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Category, NewsArticle, Language } from "../types";
 
 /**
  * SERVICE HAUTE PERFORMANCE - LE CONTRE DU MATIN
  * Modèle : Gemini 3.1 Pro (Qualité Studio)
+ * Propriété de Atmani Bachir.
  */
 
 const getApiKey = () => {
-  // @ts-ignore
-  return import.meta.env.VITE_GEMINI_API_KEY || "";
+  try {
+    // @ts-ignore
+    return import.meta.env.VITE_GEMINI_API_KEY || "";
+  } catch (e) {
+    return "";
+  }
+};
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const withRetry = async <T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> => {
+  let lastError: any;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      const isRetryable = error?.message?.includes("503") || 
+                          error?.message?.includes("429") ||
+                          error?.message?.includes("rate limit");
+      
+      if (isRetryable && i < maxRetries - 1) {
+        await sleep(Math.pow(2, i) * 1000);
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
 };
 
 export const fetchNews = async (category: Category, lang: Language): Promise<NewsArticle[]> => {
@@ -16,16 +44,22 @@ export const fetchNews = async (category: Category, lang: Language): Promise<New
   if (!apiKey) throw new Error("Clé API manquante dans Vercel.");
   
   const ai = new GoogleGenAI({ apiKey });
+  const today = new Date().toLocaleDateString('fr-FR');
 
   try {
-    const response = await ai.models.generateContent({
-      // ON UTILISE LE MODÈLE PRO DU STUDIO
+    const response = await withRetry(() => ai.models.generateContent({
       model: "gemini-3.1-pro-preview", 
       contents: `Tu es le rédacteur en chef de 'LE CONTRE DU MATIN'. 
       Génère 3 articles de très haute qualité pour la catégorie ${category} en ${lang}. 
-      Style : Journalisme d'investigation, profond et élégant.`,
+      Date : ${today}. Style : Journalisme d'investigation, profond et élégant.`,
       config: {
         responseMimeType: "application/json",
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE }
+        ],
         responseSchema: {
           type: Type.ARRAY,
           items: {
@@ -54,7 +88,7 @@ export const fetchNews = async (category: Category, lang: Language): Promise<New
           }
         }
       }
-    });
+    }));
 
     const data = JSON.parse(response.text || "[]");
     return data.map((item: any, i: number) => ({
@@ -74,7 +108,7 @@ export const speakArticle = async (text: string, lang: Language): Promise<Uint8A
   if (!apiKey) return null;
   const ai = new GoogleGenAI({ apiKey });
   try {
-    const response = await ai.models.generateContent({
+    const response = await withRetry(() => ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text: text }] }], 
       config: {
@@ -83,7 +117,7 @@ export const speakArticle = async (text: string, lang: Language): Promise<Uint8A
           voiceConfig: { prebuiltVoiceConfig: { voiceName: lang === Language.AR ? 'Zephyr' : 'Kore' } } 
         }
       }
-    });
+    }));
     const base64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!base64) return null;
     const binary = atob(base64);
@@ -93,7 +127,7 @@ export const speakArticle = async (text: string, lang: Language): Promise<Uint8A
   } catch (e) { return null; }
 };
 
-// ALIAS POUR ÉVITER LES ERREURS DE BUILD
+// ALIAS POUR ÉVITER LES ERREURS DE BUILD VERCEL
 export const generateSpeech = speakArticle;
 
 export async function decodeAudio(data: Uint8Array, ctx: AudioContext): Promise<AudioBuffer> {
