@@ -1,34 +1,29 @@
-import { GoogleGenAI, Type, Modality, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { Category, NewsArticle, Language } from "../types";
 
 /**
  * SERVICE HAUTE PERFORMANCE - LE CONTRE DU MATIN
- * Modèle : Gemini 3.1 Pro (Le plus puissant)
+ * Modèle : Gemini 3.1 Pro (Qualité Studio)
  */
 
 const getApiKey = () => {
-  try {
-    // @ts-ignore
-    return import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : "") || "";
-  } catch (e) {
-    return "";
-  }
-}
+  // @ts-ignore
+  return import.meta.env.VITE_GEMINI_API_KEY || "";
+};
 
 export const fetchNews = async (category: Category, lang: Language): Promise<NewsArticle[]> => {
   const apiKey = getApiKey();
-  if (!apiKey) throw new Error("Clé API manquante.");
+  if (!apiKey) throw new Error("Clé API manquante dans Vercel.");
   
   const ai = new GoogleGenAI({ apiKey });
-  const today = new Date().toLocaleDateString('fr-FR');
 
   try {
     const response = await ai.models.generateContent({
-      // ON UTILISE LE MODÈLE PRO POUR UNE QUALITÉ 10X SUPÉRIEURE
+      // ON UTILISE LE MODÈLE PRO DU STUDIO
       model: "gemini-3.1-pro-preview", 
       contents: `Tu es le rédacteur en chef de 'LE CONTRE DU MATIN'. 
       Génère 3 articles de très haute qualité pour la catégorie ${category} en ${lang}. 
-      Date : ${today}. Style : Grand reportage, analytique et profond.`,
+      Style : Journalisme d'investigation, profond et élégant.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -36,29 +31,37 @@ export const fetchNews = async (category: Category, lang: Language): Promise<New
           items: {
             type: Type.OBJECT,
             properties: {
-              id: { type: Type.STRING },
+              type: { type: Type.STRING },
               title: { type: Type.STRING },
               summary: { type: Type.STRING },
               content: { type: Type.STRING },
-              category: { type: Type.STRING },
-              date: { type: Type.STRING },
-              author: { type: Type.STRING },
-              imageUrl: { type: Type.STRING },
-              readTime: { type: Type.STRING }
+              location: { type: Type.STRING },
+              timestamp: { type: Type.STRING },
+              truthContent: { type: Type.STRING },
+              physicalFacts: { type: Type.STRING },
+              strategicAdvice: {
+                type: Type.OBJECT,
+                properties: {
+                  action: { type: Type.STRING },
+                  details: { type: Type.STRING }
+                },
+                required: ["action", "details"]
+              },
+              imagePrompt: { type: Type.STRING },
+              audioAnnounce: { type: Type.STRING }
             },
-            required: ["id", "title", "summary", "content", "category", "date", "author", "imageUrl", "readTime"]
+            required: ["type", "title", "summary", "content", "location", "timestamp", "truthContent", "physicalFacts", "strategicAdvice", "imagePrompt", "audioAnnounce"]
           }
         }
       }
     });
 
-    const text = response.text;
-    const articles = JSON.parse(text || "[]");
-    
-    // On s'assure que chaque article a une belle image
-    return articles.map((a: any) => ({
-      ...a,
-      imageUrl: a.imageUrl || `https://picsum.photos/seed/${a.id}/1200/600`
+    const data = JSON.parse(response.text || "[]");
+    return data.map((item: any, i: number) => ({
+      ...item,
+      id: `art-${Date.now()}-${i}`,
+      category: category,
+      sources: []
     }));
   } catch (error: any) {
     console.error("Erreur Gemini Pro:", error);
@@ -66,7 +69,6 @@ export const fetchNews = async (category: Category, lang: Language): Promise<New
   }
 };
 
-// FONCTION DE PAROLE (TTS)
 export const speakArticle = async (text: string, lang: Language): Promise<Uint8Array | null> => {
   const apiKey = getApiKey();
   if (!apiKey) return null;
@@ -91,7 +93,7 @@ export const speakArticle = async (text: string, lang: Language): Promise<Uint8A
   } catch (e) { return null; }
 };
 
-// EXPORTATIONS OBLIGATOIRES POUR ÉVITER LES ERREURS VERCEL
+// ALIAS POUR ÉVITER LES ERREURS DE BUILD
 export const generateSpeech = speakArticle;
 
 export async function decodeAudio(data: Uint8Array, ctx: AudioContext): Promise<AudioBuffer> {
