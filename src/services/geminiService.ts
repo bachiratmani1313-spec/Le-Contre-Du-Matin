@@ -8,26 +8,15 @@ const getApiKey = () => {
 
 export const fetchNews = async (category: Category, lang: Language): Promise<NewsArticle[]> => {
   const apiKey = getApiKey();
-  if (!apiKey) throw new Error("Clé API manquante.");
-
-  // --- SYSTÈME DE CACHE ---
-  const cacheKey = `news_${category}_${lang}`;
-  const cachedData = localStorage.getItem(cacheKey);
-  if (cachedData) {
-    const { articles, timestamp } = JSON.parse(cachedData);
-    // Si les articles ont moins de 30 minutes, on les utilise sans appeler l'IA
-    if (Date.now() - timestamp < 30 * 60 * 1000) {
-      console.log(`[Cache] Chargement des articles pour ${category}`);
-      return articles;
-    }
-  }
+  if (!apiKey) throw new Error("Clé API manquante dans Vercel.");
 
   const ai = new GoogleGenAI({ apiKey });
   
   try {
     const result = await ai.models.generateContent({
-      model: "gemini-1.5-flash", // On utilise 1.5-flash qui a souvent des quotas plus généreux
-      contents: `Rédige 3 articles pour ${category} en ${lang}. Style journal.`,
+      // Utilisation du modèle 1.5-flash (plus de quota gratuit)
+      model: "gemini-1.5-flash", 
+      contents: `Rédige 2 articles courts pour la catégorie ${category} en ${lang}. Style journal sérieux.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -51,19 +40,18 @@ export const fetchNews = async (category: Category, lang: Language): Promise<New
       }
     });
 
-    const articles = JSON.parse(result.text || "[]");
-    
-    // On enregistre dans le cache
-    localStorage.setItem(cacheKey, JSON.stringify({
-      articles,
-      timestamp: Date.now()
-    }));
-
-    return articles;
+    const text = result.text;
+    if (!text) return [];
+    return JSON.parse(text);
   } catch (error: any) {
+    console.error("Erreur Gemini:", error);
+    // Message d'erreur plus doux
     if (error.message?.includes("429")) {
-      throw new Error("L'IA est fatiguée (Quota dépassé). Attendez 1 minute ou réessayez plus tard.");
+      throw new Error("L'IA fait une pause (Quota atteint). Revenez dans 2 minutes.");
     }
-    throw error;
+    throw new Error("Impossible de joindre l'IA. Vérifiez votre connexion.");
   }
 };
+
+// Fonction vide pour éviter les erreurs si elle est appelée
+export const generateSpeech = async (text: string) => { return ""; };
