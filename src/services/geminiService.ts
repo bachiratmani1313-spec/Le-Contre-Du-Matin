@@ -8,15 +8,15 @@ const getApiKey = () => {
 
 export const fetchNews = async (category: Category, lang: Language): Promise<NewsArticle[]> => {
   const apiKey = getApiKey();
-  if (!apiKey) throw new Error("Clé API manquante dans Vercel.");
+  if (!apiKey) throw new Error("Clé API manquante.");
 
   const ai = new GoogleGenAI({ apiKey });
   
   try {
     const result = await ai.models.generateContent({
-      // 1.5-flash est plus robuste pour le quota gratuit
+      // Utilisation du modèle 1.5-flash qui est le plus généreux
       model: "gemini-1.5-flash", 
-      contents: `Rédige 3 articles courts pour la catégorie ${category} en ${lang}. Style journal sérieux.`,
+      contents: `Rédige 2 articles très courts pour ${category} en ${lang}. Style direct.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -41,22 +41,20 @@ export const fetchNews = async (category: Category, lang: Language): Promise<New
     });
 
     const text = result.text;
-    if (!text) throw new Error("Réponse vide de l'IA");
-    return JSON.parse(text);
+    return JSON.parse(text || "[]");
   } catch (error: any) {
     console.error("Erreur Gemini:", error);
-    
-    // ARTICLES DE SECOURS (Si l'IA est bloquée)
+    // Retourne les articles de secours si l'IA est bloquée
     return [
       {
         id: "fallback-1",
-        title: `Actualités ${category} : L'IA est en cours de rédaction`,
-        summary: "Nos serveurs de rédaction sont actuellement très sollicités. Les articles complets reviendront dans quelques instants.",
-        content: "Le Contre du Matin vous remercie de votre fidélité. Notre équipe d'intelligence artificielle prépare une édition spéciale. Veuillez rafraîchir la page dans une minute.",
+        title: `Édition Spéciale : ${category}`,
+        summary: "Le Contre du Matin prépare ses rotatives numériques. Nos articles arrivent d'ici quelques minutes.",
+        content: "Merci de votre patience. Notre IA est en train de synthétiser les dernières informations mondiales pour vous offrir le meilleur briefing possible. Propriété de Atmani Bachir.",
         category: category,
         date: new Date().toLocaleDateString(),
-        author: "Rédaction Automatique",
-        imageUrl: "https://images.unsplash.com/photo-1504711432869-5d39a142df4a?q=80&w=1000&auto=format&fit=crop",
+        author: "Rédaction IA",
+        imageUrl: "https://picsum.photos/seed/news/800/600",
         readTime: "1 min"
       }
     ];
